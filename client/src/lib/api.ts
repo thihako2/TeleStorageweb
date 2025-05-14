@@ -1,6 +1,6 @@
 import { getIdToken } from "./firebase";
 import { apiRequest } from "./queryClient";
-import { type User, type File, type UserWithStorage, type FileWithShareInfo } from "@shared/schema";
+import { type User, type File as FileSchema, type UserWithStorage, type FileWithShareInfo } from "@shared/schema";
 
 // Authentication API
 export const loginUser = async (idToken: string) => {
@@ -32,7 +32,7 @@ export const getCurrentUser = async (): Promise<UserWithStorage> => {
 };
 
 // Files API
-export const getUserFiles = async (): Promise<File[]> => {
+export const getUserFiles = async (): Promise<FileSchema[]> => {
   const token = await getIdToken();
   if (!token) throw new Error("No auth token available");
   
@@ -50,7 +50,7 @@ export const getUserFiles = async (): Promise<File[]> => {
   return response.json();
 };
 
-export const getRecentFiles = async (limit: number = 4): Promise<File[]> => {
+export const getRecentFiles = async (limit: number = 4): Promise<FileSchema[]> => {
   const token = await getIdToken();
   if (!token) throw new Error("No auth token available");
   
@@ -68,7 +68,7 @@ export const getRecentFiles = async (limit: number = 4): Promise<File[]> => {
   return response.json();
 };
 
-export const getFilesByType = async (type: string): Promise<File[]> => {
+export const getFilesByType = async (type: string): Promise<FileSchema[]> => {
   const token = await getIdToken();
   if (!token) throw new Error("No auth token available");
   
@@ -104,7 +104,7 @@ export const getFileDetails = async (fileId: number): Promise<FileWithShareInfo>
   return response.json();
 };
 
-export const uploadFile = async (file: File, onProgress?: (progress: number) => void): Promise<FileWithShareInfo> => {
+export const uploadFile = async (file: globalThis.File, onProgress?: (progress: number) => void): Promise<FileWithShareInfo> => {
   const token = await getIdToken();
   if (!token) throw new Error("No auth token available");
   

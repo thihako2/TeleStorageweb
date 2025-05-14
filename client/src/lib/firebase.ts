@@ -10,15 +10,13 @@ import {
   type User as FirebaseUser
 } from "firebase/auth";
 
-// Firebase configuration with provided values
+// Firebase configuration using environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyBWAwN87Lg2InNx6Hp_K70vqSc7cj5wuKE",
-  authDomain: "tele-storage-f4064.firebaseapp.com",
-  projectId: "tele-storage-f4064",
-  storageBucket: "tele-storage-f4064.firebasestorage.app",
-  messagingSenderId: "756673574606",
-  appId: "1:756673574606:web:fa24f4e6fb3e726f2e429f",
-  measurementId: "G-9246XWZEFW"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.appspot.com`,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Initialize Firebase
