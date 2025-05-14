@@ -1,5 +1,13 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { auth, getCurrentUser, type FirebaseUser } from "@/lib/firebase";
+import { 
+  auth, 
+  getCurrentUser, 
+  loginWithEmailPassword, 
+  registerWithEmailPassword, 
+  loginWithGoogle, 
+  logoutUser, 
+  type FirebaseUser 
+} from "@/lib/firebase";
 import { loginUser, registerUser, getCurrentUser as fetchUserData } from "@/lib/api";
 import { type User, type UserWithStorage } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -24,7 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (fbUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
       
       if (fbUser) {
@@ -59,7 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
-      const userCredential = await auth.signInWithEmailAndPassword(email, password);
+      const userCredential = await loginWithEmailPassword(email, password);
       const token = await userCredential.user.getIdToken();
       await loginUser(token);
       const userData = await fetchUserData();
@@ -84,7 +92,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (email: string, password: string) => {
     try {
       setLoading(true);
-      const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+      const userCredential = await registerWithEmailPassword(email, password);
       const token = await userCredential.user.getIdToken();
       const displayName = userCredential.user.displayName || email.split('@')[0];
       await registerUser(token, { displayName, photoURL: userCredential.user.photoURL || undefined });
@@ -110,8 +118,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const googleLogin = async () => {
     try {
       setLoading(true);
-      const provider = new auth.GoogleAuthProvider();
-      const userCredential = await auth.signInWithPopup(provider);
+      const userCredential = await loginWithGoogle();
       const token = await userCredential.user.getIdToken();
       await loginUser(token);
       const userData = await fetchUserData();
@@ -136,7 +143,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     try {
       setLoading(true);
-      await auth.signOut();
+      await logoutUser();
       setUser(null);
       toast({
         title: "Logout Successful",
