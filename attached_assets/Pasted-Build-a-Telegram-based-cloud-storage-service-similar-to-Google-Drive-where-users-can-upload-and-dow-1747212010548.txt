@@ -1,0 +1,45 @@
+Build a Telegram-based cloud storage service similar to Google Drive, where users can upload and download files via a centralized Telegram channel (owned by the app). All Telegram interactions should be handled using TDLib, while firebase is used for storing metadata and managing user authentication.
+Tech Stack:
+Frontend: React.js
+Backend: NestJS
+Database & Auth: firebase (Auth, Meta data storage)
+Telegram Integration: TDLib (Telegram Database Library)
+System Features:
+Authentication:
+Users log in via firebase Auth
+Upon login, a secure API token is issued for authenticated access
+File Upload Flow:
+User selects file in React.js frontend
+File is sent to the NestJS backend
+Backend uses TDLib to send the file to a single private Telegram channel
+After successful upload(Sending to private telegram channel), metadata is stored in firebase, including:
+file_name, file_type, file_size, file_link
+uploader_id, upload_timestamp
+telegram_message_id, channel_id
+File Download Flow:
+Users can view their files via a React-based dashboard
+When downloading, the system retrieves the file from Telegram using the message ID or file link via TDLib
+Access is secured and authorized based on user session
+Frontend (React.js):
+OAuth login (using firebase)
+Upload interface (progress + file validations)
+File list (name, size, date) with download buttons
+Error/success notifications
+Backend (NestJS):
+Exposes authenticated REST APIs for:
+Uploading files
+Listing files (filtered by user)
+Downloading files
+Integrates with TDLib for file upload/download
+Uses firebase SDK to read/write metadata
+Key Constraints:
+All files are stored in one Telegram channel I own and control
+TDLib must run as a Telegram client session linked to your app
+firebase handles authentication, authorization, and all metadata storage
+Must support Telegram's file size limits (~2GB) for more than 2GB separate them and send them.
+Bonus Features (Optional):
+File previews (images, PDFs)
+Quota enforcement per user (e.g., max 5GB/user)
+File expiration policy
+Admin panel for managing files and users
+Shared file links with limited-time access
