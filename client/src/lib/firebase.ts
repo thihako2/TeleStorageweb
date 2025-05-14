@@ -60,5 +60,5 @@ export const getIdToken = async (): Promise<string | null> => {
   return user.getIdToken();
 };
 
-export { auth, app };
+export { auth, app, onAuthStateChanged };
 export type { FirebaseUser };

@@ -5,9 +5,10 @@ import {
   loginWithEmailPassword, 
   registerWithEmailPassword, 
   loginWithGoogle, 
-  logoutUser, 
+  logoutUser,
   type FirebaseUser 
 } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import { loginUser, registerUser, getCurrentUser as fetchUserData } from "@/lib/api";
 import { type User, type UserWithStorage } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -32,7 +33,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
       setFirebaseUser(fbUser);
       
       if (fbUser) {
