@@ -9,7 +9,7 @@ import Dashboard from "@/pages/Dashboard";
 import Home from "@/pages/Home";
 import Settings from "@/pages/Settings";
 import Shared from "@/pages/Shared";
-import { useAuth } from "./contexts/AuthContext";
+import { useAuth, AuthProvider } from "./contexts/AuthContext";
 import { useEffect } from "react";
 
 function Router() {
@@ -49,8 +49,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Router />
+        <AuthProvider>
+          <Toaster />
+          <Router />
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
