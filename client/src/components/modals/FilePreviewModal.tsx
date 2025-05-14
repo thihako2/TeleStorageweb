@@ -5,6 +5,7 @@ import { FileWithShareInfo } from "@shared/schema";
 import { downloadFile } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Download, X } from "lucide-react";
+import { formatBytes } from "@/lib/utils";
 
 interface FilePreviewModalProps {
   isOpen: boolean;
@@ -16,18 +17,7 @@ export default function FilePreviewModal({ isOpen, onClose, file }: FilePreviewM
   const { toast } = useToast();
   const [isDownloading, setIsDownloading] = useState(false);
   
-  // Format bytes to human-readable format
-  const formatBytes = (bytes: number, decimals = 2): string => {
-    if (bytes === 0) return '0 Bytes';
-    
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-  };
+  // Using the shared formatBytes utility function
   
   // Format date
   const formatDate = (date: Date | string): string => {
@@ -162,7 +152,7 @@ export default function FilePreviewModal({ isOpen, onClose, file }: FilePreviewM
             </Button>
           </DialogTitle>
           <p className="text-sm text-gray-500">
-            Uploaded on {formatDate(file.uploadTimestamp)} • {formatBytes(file.fileSize)}
+            Uploaded on {file.uploadTimestamp ? formatDate(file.uploadTimestamp) : 'Unknown date'} • {formatBytes(file.fileSize)}
           </p>
         </DialogHeader>
         

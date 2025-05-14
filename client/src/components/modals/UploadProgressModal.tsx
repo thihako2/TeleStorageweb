@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle, AlertCircle, Cloud } from "lucide-react";
+import { formatBytes } from "@/lib/utils";
 
 interface UploadingFile {
   file: File;
@@ -34,18 +35,7 @@ export default function UploadProgressModal({ isOpen, onClose, uploads }: Upload
     ? 0 
     : uploads.reduce((sum, file) => sum + file.progress, 0) / uploads.length;
   
-  // Format bytes to human-readable format
-  const formatBytes = (bytes: number, decimals = 2): string => {
-    if (bytes === 0) return '0 Bytes';
-    
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-  };
+  // Format the file size using our utility function
   
   // Calculate the uploaded and total size for a file
   const getFileProgress = (file: UploadingFile) => {
