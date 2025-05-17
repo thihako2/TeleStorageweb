@@ -6,6 +6,14 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { v4 as uuidv4 } from 'uuid';
+import pino from 'pino';
+
+const logger = pino({
+  transport: {
+    target: 'pino-pretty'
+  }
+});
+
 
 // Validation schemas
 const fileSchema = z.object({
@@ -68,38 +76,89 @@ export const filesController = {
   /**
    * Upload a file to Telegram and store metadata
    */
+  /**
+   * Save a file temporarily on the server
+   */
+  saveTempFile: async (req: Request, res: Response) => {
+    try {
+      // Check if user is authenticated
+      if (!req.user) {
+        return res.status(401).json({ message: 'Not authenticated' });
+      }
+
+      // Check if file was uploaded
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      // Return the temporary file path
+      return res.status(200).json({ tempPath: req.file.path });
+    } catch (error) {
+      console.error('Save temp file error:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return res.status(500).json({ message: 'Failed to save file temporarily', error: errorMessage });
+    }
+  },
+
+  /**
+   * Upload a file to Telegram and store metadata
+   */
   uploadFile: async (req: Request, res: Response) => {
     try {
       // Check if user is authenticated
       if (!req.user) {
         return res.status(401).json({ message: 'Not authenticated' });
       }
-      
-      // Check if file was uploaded
-      if (!req.file) {
-        return res.status(400).json({ message: 'No file uploaded' });
+
+      let filePath: string;
+      let originalname: string;
+      let mimetype: string;
+      let size: number;
+      let isTempFile = false;
+
+      // Check if a temporary file path is provided
+      if (req.body.tempPath) {
+        filePath = req.body.tempPath;
+        isTempFile = true;
+
+        // Get file details from the temporary file
+        try {
+          const stats = fs.statSync(filePath);
+          size = stats.size;
+          // Attempt to derive originalname and mimetype from the filename
+          originalname = path.basename(filePath).split('-').slice(2).join('-'); // Assuming filename format: timestamp-random-originalname
+          mimetype = ''; // Mimetype cannot be reliably determined from path alone, might need a library or store it with temp file
+        } catch (error) {
+          console.error('Error getting temp file stats:', error);
+          return res.status(400).json({ message: 'Invalid temporary file path' });
+        }
+
+      } else if (req.file) {
+        // Use the directly uploaded file
+        filePath = req.file.path;
+        originalname = req.file.originalname;
+        mimetype = req.file.mimetype;
+        size = req.file.size;
+      } else {
+        return res.status(400).json({ message: 'No file or temporary file path provided' });
       }
-      
-      // Get user ID
-      const userId = req.user.id;
-      
-      // Get file details
-      const { originalname, mimetype, size, path: tempPath } = req.file;
-      
+
+      console.log('Uploading file:', originalname, 'from path:', filePath);
+
       // Check file size - Telegram has a 2GB limit
       const maxSizeBytes = 2 * 1024 * 1024 * 1024; // 2GB
       if (size > maxSizeBytes) {
         // For files > 2GB, we would split them in a real implementation
         // But for simplicity, we'll just reject them in this example
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: 'File too large. Maximum size is 2GB.',
           maxSize: maxSizeBytes,
           actualSize: size
         });
       }
-      
+
       // Check user quota
-      const userInfo = await storage.getUserWithStorageInfo(userId);
+      const userInfo = await storage.getUserWithStorageInfo(req.user.id);
       if (userInfo && (userInfo.storageInfo.used + size > userInfo.storageInfo.total)) {
         return res.status(400).json({
           message: 'Storage quota exceeded',
@@ -108,39 +167,65 @@ export const filesController = {
           required: size
         });
       }
-      
-      // Determine file type
-      const fileType = getFileType(originalname, mimetype);
-      
+
+      // Determine file type (using mimetype if available, otherwise fallback to originalname)
+      const fileType = getFileType(originalname, mimetype || originalname);
+
       // Send file to Telegram
-      const result = await telegramService.sendFile(tempPath, originalname);
-      
+      const result = await telegramService.sendFile(filePath, originalname);
+
       // Store file metadata
       const fileData = {
         fileName: originalname,
         fileType: fileType,
         fileSize: size,
         fileLink: '', // Would be set for certain file types like images in a real implementation
-        uploaderId: userId,
+        uploaderId: req.user.id,
         telegramMessageId: result.messageId,
-        channelId: result.channelId
+        channelId: result.channelId,
+        fileId: result.fileId,
+        mimeType: result.mimeType,
+        isUploadingCompleted: result.isUploadingCompleted,
+        isUploadingActive: result.isUploadingActive,
+        isDownloadingCompleted: result.isDownloadingCompleted,
+        isDownloadingActive: result.isDownloadingActive,
+        isDownloadingFailed: result.isDownloadingFailed,
+        isUploadingFailed: result.isUploadingFailed,
+        isUploadingCanceled: result.isUploadingCanceled,
       };
-      
+
+      // save file metadata to the firestore database
+      // 
+
+
+      // Memorize file metadata
       const file = await storage.createFile(fileData);
-      
+
       // Update user storage usage
-      await storage.updateUserStorage(userId, size);
-      
+      await storage.updateUserStorage(req.user.id, size);
+
       // Return file metadata
       const fileWithShareInfo = await storage.getFileWithShareInfo(file.id);
-      
+
+      // Clean up temporary file after successful upload if it was a temp file
+      if (isTempFile) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (cleanupError) {
+          console.error('Failed to clean up temporary file:', cleanupError);
+          // Continue even if cleanup fails
+        }
+      }
+
       return res.status(201).json(fileWithShareInfo);
     } catch (error) {
       console.error('File upload error:', error);
-      return res.status(500).json({ message: 'File upload failed', error: error.message });
+
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return res.status(500).json({ message: 'File upload failed', error: errorMessage });
     }
   },
-  
+
   /**
    * Get all files for the authenticated user
    */
@@ -156,11 +241,23 @@ export const filesController = {
       
       // Get all files for the user
       const files = await storage.getUserFiles(userId);
-      
+      let fileList = [];
+
+      files.forEach(element => {
+        // console.log(`File ID: ${element.id}, File Name: ${element.fileName}, File Type: ${element.fileType}`);
+        // const file = telegramService.downloadFile(element.telegramMessageId, element.channelId, element.id);
+        const file = telegramService.downloadFile(element.telegramMessageId, element.channelId, element.id);
+        fileList.push(file);
+      });
+
+      // logger.info(`Files List is ${JSON.stringify(fileList)}`);
+
       return res.status(200).json(files);
     } catch (error) {
       console.error('Get user files error:', error);
-      return res.status(500).json({ message: 'Failed to get files', error: error.message });
+
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return res.status(500).json({ message: 'Failed to get files', error: errorMessage });
     }
   },
   
@@ -179,14 +276,14 @@ export const filesController = {
       
       // Get limit from query params (default to 4)
       const limit = parseInt(req.query.limit as string) || 4;
-      
       // Get recent files for the user
       const files = await storage.getRecentUserFiles(userId, limit);
-      
       return res.status(200).json(files);
     } catch (error) {
       console.error('Get recent files error:', error);
-      return res.status(500).json({ message: 'Failed to get recent files', error: error.message });
+
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return res.status(500).json({ message: 'Failed to get recent files', error: errorMessage });
     }
   },
   
@@ -202,7 +299,6 @@ export const filesController = {
       
       // Get user ID
       const userId = req.user.id;
-      
       // Get file type from params
       const fileType = req.params.type;
       
@@ -219,7 +315,8 @@ export const filesController = {
       return res.status(200).json(files);
     } catch (error) {
       console.error('Get files by type error:', error);
-      return res.status(500).json({ message: 'Failed to get files by type', error: error.message });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return res.status(500).json({ message: 'Failed to get files by type',error: errorMessage});
     }
   },
   
@@ -255,7 +352,8 @@ export const filesController = {
       return res.status(200).json(fileWithShareInfo);
     } catch (error) {
       console.error('Get file error:', error);
-      return res.status(500).json({ message: 'Failed to get file', error: error.message });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return res.status(500).json({ message: 'Failed to get file',error: errorMessage});
     }
   },
   
@@ -289,7 +387,7 @@ export const filesController = {
       }
       
       // Download file from Telegram
-      const filePath = await telegramService.downloadFile(file.telegramMessageId, file.channelId);
+      const filePath = await telegramService.downloadFile(file.telegramMessageId, file.channelId, file.id);
       
       // Set appropriate headers
       res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
@@ -307,7 +405,8 @@ export const filesController = {
       });
     } catch (error) {
       console.error('Download file error:', error);
-      return res.status(500).json({ message: 'Failed to download file', error: error.message });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return res.status(500).json({ message: 'Failed to download file',error: errorMessage});
     }
   },
   
@@ -346,7 +445,8 @@ export const filesController = {
       return res.status(200).json({ success });
     } catch (error) {
       console.error('Delete file error:', error);
-      return res.status(500).json({ message: 'Failed to delete file', error: error.message });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return res.status(500).json({ message: 'Failed to delete file',error: errorMessage});
     }
   },
   
@@ -362,10 +462,8 @@ export const filesController = {
       
       // Validate request
       const validatedData = starFileSchema.parse(req.body);
-      
       // Get file ID from params
       const fileId = parseInt(req.params.id);
-      
       // Get the file
       const file = await storage.getFile(fileId);
       
@@ -388,7 +486,6 @@ export const filesController = {
       
       // Get file with share info
       const fileWithShareInfo = await storage.getFileWithShareInfo(fileId);
-      
       return res.status(200).json(fileWithShareInfo);
     } catch (error) {
       console.error('Star file error:', error);
@@ -396,8 +493,8 @@ export const filesController = {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: 'Invalid request data', errors: error.errors });
       }
-      
-      return res.status(500).json({ message: 'Failed to star file', error: error.message });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return res.status(500).json({ message: 'Failed to star file',error: errorMessage});
     }
   },
   
@@ -446,8 +543,8 @@ export const filesController = {
         shareLink,
         expiryDate,
       });
-      
-      return res.status(200).json({ 
+
+      return res.status(200).json({
         id: sharedFile.id,
         shareLink,
         expiryDate: sharedFile.expiryDate
@@ -458,8 +555,8 @@ export const filesController = {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: 'Invalid request data', errors: error.errors });
       }
-      
-      return res.status(500).json({ message: 'Failed to share file', error: error.message });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return res.status(500).json({ message: 'Failed to share file',error: errorMessage});
     }
   },
   
@@ -503,7 +600,8 @@ export const filesController = {
       return res.status(200).json({ success });
     } catch (error) {
       console.error('Delete shared link error:', error);
-      return res.status(500).json({ message: 'Failed to delete shared link', error: error.message });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return res.status(500).json({ message: 'Failed to delete shared link',error: errorMessage});
     }
   },
   
@@ -542,7 +640,8 @@ export const filesController = {
       return res.status(200).json({ file });
     } catch (error) {
       console.error('Get shared file error:', error);
-      return res.status(500).json({ message: 'Failed to get shared file', error: error.message });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return res.status(500).json({ message: 'Failed to get shared file',error: errorMessage});
     }
   },
 };

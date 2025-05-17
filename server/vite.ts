@@ -5,6 +5,13 @@ import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
 import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
+import pino from 'pino';
+
+const logger = pino({
+  transport: {
+    target: 'pino-pretty'
+  }
+});
 
 const viteLogger = createLogger();
 
@@ -16,14 +23,14 @@ export function log(message: string, source = "express") {
     hour12: true,
   });
 
-  console.log(`${formattedTime} [${source}] ${message}`);
+  logger.info(`${formattedTime} [${source}] ${message}`);
 }
 
 export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
-    allowedHosts: true,
+    allowedHosts: ['localhost'],
   };
 
   const vite = await createViteServer({

@@ -41,24 +41,22 @@ export default function Sidebar({ userData, selectedFilter, onFilterChange }: Si
             </div>
           </div>
           <nav className="mt-5 flex-1 px-2 space-y-1">
-            <Link href="/dashboard">
-              <a 
-                className={cn(
-                  "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
-                  (location === "/dashboard" && selectedFilter === "all") 
-                    ? "bg-gray-100 text-gray-900" 
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                )}
-                onClick={() => onFilterChange("all")}
-              >
-                <FileText className="mr-3 h-6 w-6 text-gray-500" />
-                All Files
-              </a>
-            </Link>
-            <a 
-              href="#"
+            <Link 
+              href="/dashboard"
               className={cn(
                 "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                (location === "/dashboard" && selectedFilter === "all") 
+                  ? "bg-gray-100 text-gray-900" 
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              )}
+              onClick={() => onFilterChange("all")}
+            >
+              <FileText className="mr-3 h-6 w-6 text-gray-500" />
+              All Files
+            </Link>
+            <div
+              className={cn(
+                "group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer",
                 selectedFilter === "recent" 
                   ? "bg-gray-100 text-gray-900" 
                   : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -67,11 +65,10 @@ export default function Sidebar({ userData, selectedFilter, onFilterChange }: Si
             >
               <Calendar className="mr-3 h-6 w-6 text-gray-400 group-hover:text-gray-500" />
               Recent
-            </a>
-            <a 
-              href="#"
+            </div>
+            <div
               className={cn(
-                "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                "group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer",
                 selectedFilter === "starred" 
                   ? "bg-gray-100 text-gray-900" 
                   : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -80,24 +77,22 @@ export default function Sidebar({ userData, selectedFilter, onFilterChange }: Si
             >
               <Star className="mr-3 h-6 w-6 text-gray-400 group-hover:text-gray-500" />
               Starred
-            </a>
-            <Link href="/shared">
-              <a 
-                className={cn(
-                  "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
-                  location === "/shared"
-                    ? "bg-gray-100 text-gray-900" 
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                )}
-              >
-                <Users className="mr-3 h-6 w-6 text-gray-400 group-hover:text-gray-500" />
-                Shared with me
-              </a>
-            </Link>
-            <a 
-              href="#"
+            </div>
+            <Link 
+              href="/shared"
               className={cn(
                 "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                location === "/shared"
+                  ? "bg-gray-100 text-gray-900" 
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              )}
+            >
+              <Users className="mr-3 h-6 w-6 text-gray-400 group-hover:text-gray-500" />
+              Shared with me
+            </Link>
+            <div
+              className={cn(
+                "group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer",
                 selectedFilter === "trash" 
                   ? "bg-gray-100 text-gray-900" 
                   : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -106,16 +101,15 @@ export default function Sidebar({ userData, selectedFilter, onFilterChange }: Si
             >
               <Trash2 className="mr-3 h-6 w-6 text-gray-400 group-hover:text-gray-500" />
               Trash
-            </a>
+            </div>
           </nav>
 
           <div className="px-4 mt-6">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">File Types</h3>
             <div className="mt-2 space-y-1">
-              <a 
-                href="#"
+              <div
                 className={cn(
-                  "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                  "group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer",
                   selectedFilter === "documents" 
                     ? "bg-gray-100 text-gray-900" 
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -124,11 +118,10 @@ export default function Sidebar({ userData, selectedFilter, onFilterChange }: Si
               >
                 <FileText className="mr-3 h-5 w-5 text-blue-500" />
                 Documents
-              </a>
-              <a 
-                href="#"
+              </div>
+              <div
                 className={cn(
-                  "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                  "group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer",
                   selectedFilter === "images" 
                     ? "bg-gray-100 text-gray-900" 
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -137,11 +130,10 @@ export default function Sidebar({ userData, selectedFilter, onFilterChange }: Si
               >
                 <FileImage className="mr-3 h-5 w-5 text-red-500" />
                 Images
-              </a>
-              <a 
-                href="#"
+              </div>
+              <div
                 className={cn(
-                  "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                  "group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer",
                   selectedFilter === "audio" 
                     ? "bg-gray-100 text-gray-900" 
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -150,11 +142,10 @@ export default function Sidebar({ userData, selectedFilter, onFilterChange }: Si
               >
                 <Music className="mr-3 h-5 w-5 text-purple-500" />
                 Audio
-              </a>
-              <a 
-                href="#"
+              </div>
+              <div
                 className={cn(
-                  "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                  "group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer",
                   selectedFilter === "videos" 
                     ? "bg-gray-100 text-gray-900" 
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -163,11 +154,10 @@ export default function Sidebar({ userData, selectedFilter, onFilterChange }: Si
               >
                 <Video className="mr-3 h-5 w-5 text-green-500" />
                 Videos
-              </a>
-              <a 
-                href="#"
+              </div>
+              <div
                 className={cn(
-                  "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                  "group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer",
                   selectedFilter === "archives" 
                     ? "bg-gray-100 text-gray-900" 
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -176,7 +166,7 @@ export default function Sidebar({ userData, selectedFilter, onFilterChange }: Si
               >
                 <Archive className="mr-3 h-5 w-5 text-yellow-500" />
                 Archives
-              </a>
+              </div>
             </div>
           </div>
         </div>

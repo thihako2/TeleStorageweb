@@ -2,7 +2,7 @@ import { useState, useRef, ChangeEvent } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { uploadFile } from "@/lib/api";
+import { uploadFile, saveTempFile } from "@/lib/api"; // Import saveTempFile
 import { formatBytes } from "@/lib/utils";
 import UploadProgressModal from "./UploadProgressModal";
 import { File, FileText, X } from "lucide-react";
@@ -17,6 +17,7 @@ interface UploadModalProps {
 interface SelectedFile {
   file: File;
   id: string;
+  tempPath?: string; // Add tempPath
 }
 
 interface UploadingFile {
@@ -25,6 +26,7 @@ interface UploadingFile {
   progress: number;
   status: "pending" | "uploading" | "completed" | "error";
   error?: string;
+  tempPath?: string; // Add tempPath
 }
 
 export default function UploadModal({ isOpen, onClose, onFileUploaded }: UploadModalProps) {
@@ -36,28 +38,53 @@ export default function UploadModal({ isOpen, onClose, onFileUploaded }: UploadM
   const [isUploading, setIsUploading] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
 
-  // Handle file selection
-  const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.length) return;
-    
-    const newFiles: SelectedFile[] = Array.from(e.target.files).map((file) => ({
-      file,
-      id: `${file.name}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    }));
-    
-    // Check if user has enough quota left
-    const totalSize = [...selectedFiles, ...newFiles].reduce((sum, f) => sum + f.file.size, 0);
-    
-    if (user && (user.storageInfo.used + totalSize > user.storageInfo.total)) {
+  // Save file temporarily on the server
+  const saveFileTemporarily = async (file: File): Promise<SelectedFile | null> => {
+    try {
+      const response = await saveTempFile(file); // Call the new API function
+      return {
+        file,
+        id: `${file.name}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        tempPath: response.tempPath, // Store the temporary path
+      };
+    } catch (error) {
+      console.error("Error saving file temporarily:", error);
       toast({
-        title: "Storage Quota Exceeded",
-        description: "You don't have enough storage space for these files.",
+        title: "Error",
+        description: `Failed to save file ${file.name} temporarily.`,
         variant: "destructive",
       });
-      return;
+      return null;
+    }
+  };
+
+  // Handle file selection
+  const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+    
+    const filesToProcess = Array.from(e.target.files);
+    const processedFiles: SelectedFile[] = [];
+
+    for (const file of filesToProcess) {
+      // Check if user has enough quota left for this file
+      const totalSize = selectedFiles.reduce((sum, f) => sum + f.file.size, 0) + file.size;
+      
+      if (user && (user.storageInfo.used + totalSize > user.storageInfo.total)) {
+        toast({
+          title: "Storage Quota Exceeded",
+          description: `You don't have enough storage space for ${file.name}.`,
+          variant: "destructive",
+        });
+        continue; // Skip this file
+      }
+
+      const tempFile = await saveFileTemporarily(file);
+      if (tempFile) {
+        processedFiles.push(tempFile);
+      }
     }
     
-    setSelectedFiles((prev) => [...prev, ...newFiles]);
+    setSelectedFiles((prev) => [...prev, ...processedFiles]);
     
     // Reset input
     if (fileInputRef.current) {
@@ -76,30 +103,35 @@ export default function UploadModal({ isOpen, onClose, onFileUploaded }: UploadM
     e.stopPropagation();
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
     if (!e.dataTransfer.files?.length) return;
     
-    const newFiles: SelectedFile[] = Array.from(e.dataTransfer.files).map((file) => ({
-      file,
-      id: `${file.name}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    }));
-    
-    // Check if user has enough quota left
-    const totalSize = [...selectedFiles, ...newFiles].reduce((sum, f) => sum + f.file.size, 0);
-    
-    if (user && (user.storageInfo.used + totalSize > user.storageInfo.total)) {
-      toast({
-        title: "Storage Quota Exceeded",
-        description: "You don't have enough storage space for these files.",
-        variant: "destructive",
-      });
-      return;
+    const filesToProcess = Array.from(e.dataTransfer.files);
+    const processedFiles: SelectedFile[] = [];
+
+    for (const file of filesToProcess) {
+      // Check if user has enough quota left for this file
+      const totalSize = selectedFiles.reduce((sum, f) => sum + f.file.size, 0) + file.size;
+      
+      if (user && (user.storageInfo.used + totalSize > user.storageInfo.total)) {
+        toast({
+          title: "Storage Quota Exceeded",
+          description: `You don't have enough storage space for ${file.name}.`,
+          variant: "destructive",
+        });
+        continue; // Skip this file
+      }
+
+      const tempFile = await saveFileTemporarily(file);
+      if (tempFile) {
+        processedFiles.push(tempFile);
+      }
     }
     
-    setSelectedFiles((prev) => [...prev, ...newFiles]);
+    setSelectedFiles((prev) => [...prev, ...processedFiles]);
   };
 
   // Start upload process
@@ -135,14 +167,14 @@ export default function UploadModal({ isOpen, onClose, onFileUploaded }: UploadM
           )
         );
         
-        // Upload the file
-        await uploadFile(file.file, (progress) => {
+        // Upload the file using the temporary path
+        await uploadFile(file.file, (progress) => { // Modify uploadFile to accept tempPath
           setUploadingFiles((prev) =>
             prev.map((f) =>
               f.id === file.id ? { ...f, progress } : f
             )
           );
-        });
+        }, file.tempPath); // Pass tempPath to uploadFile
         
         // Mark as completed
         setUploadingFiles((prev) =>
@@ -274,5 +306,3 @@ export default function UploadModal({ isOpen, onClose, onFileUploaded }: UploadM
     </>
   );
 }
-
-

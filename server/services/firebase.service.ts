@@ -20,12 +20,14 @@ class FirebaseService {
       // Check if required environment variables are set
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-      const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+      let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+      
+      if (privateKey) {
+        privateKey = privateKey.replace(/\\n/g, '\n');
+      }
       
       if (!projectId || !clientEmail || !privateKey) {
-        console.warn('Firebase credentials not found in environment variables. Using mock implementation.');
-        this.initialized = true;
-        return;
+        throw new Error('Firebase credentials not found in environment variables. Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.');
       }
       
       // Initialize Firebase Admin SDK
@@ -61,27 +63,11 @@ class FirebaseService {
         // Use Firebase Admin SDK to verify token
         return await admin.auth().verifyIdToken(idToken);
       } else {
-        // Mock implementation for development/testing
-        console.warn('Using mock token verification');
-        
-        // Parse the JWT to extract the payload
-        const payloadBase64 = idToken.split('.')[1];
-        const payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString());
-        
-        return {
-          uid: payload.sub || 'mock-uid',
-          email: payload.email || 'user@example.com',
-          name: payload.name,
-          picture: payload.picture,
-          iat: payload.iat || Math.floor(Date.now() / 1000),
-          exp: payload.exp || Math.floor(Date.now() / 1000) + 3600,
-          auth_time: payload.auth_time || Math.floor(Date.now() / 1000),
-          firebase: { sign_in_provider: 'custom' },
-        } as admin.auth.DecodedIdToken;
+        throw new Error('Firebase Admin SDK not initialized.');
       }
     } catch (error) {
       console.error('Token verification failed:', error);
-      throw new Error(`Invalid or expired token: ${error.message}`);
+      throw error;
     }
   }
 
@@ -109,13 +95,17 @@ class FirebaseService {
           email: 'user@example.com',
           emailVerified: true,
           displayName: 'Test User',
-          photoURL: null,
-          phoneNumber: null,
+          photoURL: undefined,
+          phoneNumber: undefined,
           disabled: false,
           metadata: {
             creationTime: new Date().toISOString(),
             lastSignInTime: new Date().toISOString(),
-            lastRefreshTime: null,
+            lastRefreshTime: undefined,
+            toJSON: () => ({
+              creationTime: new Date().toISOString(),
+              lastSignInTime: new Date().toISOString(),
+            }),
           },
           providerData: [],
           toJSON: () => ({ uid }),

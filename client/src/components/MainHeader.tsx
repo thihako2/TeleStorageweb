@@ -40,25 +40,17 @@ export default function MainHeader({ onUploadClick }: { onUploadClick: () => voi
               <span className="ml-2 text-xl font-bold text-gray-900">TeleStore</span>
             </div>
             <nav className="hidden sm:ml-6 sm:flex sm:space-x-8">
-              <Link href="/">
-                <a className="border-primary text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+              <Link href="/" className="border-primary text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                   Home
-                </a>
               </Link>
-              <Link href="/dashboard">
-                <a className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+              <Link href="/dashboard" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                   Files
-                </a>
               </Link>
-              <Link href="/shared">
-                <a className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+              <Link href="/shared" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                   Shared
-                </a>
               </Link>
-              <Link href="/settings">
-                <a className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+              <Link href="/settings" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                   Settings
-                </a>
               </Link>
             </nav>
           </div>

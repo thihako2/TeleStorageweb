@@ -70,7 +70,9 @@ export class MemStorage implements IStorage {
       id, 
       createdAt: now, 
       quota: 5368709120, // 5GB in bytes
-      usedStorage: 0 
+      usedStorage: 0,
+      displayName: userData.displayName ?? null,
+      photoURL: userData.photoURL ?? null
     };
     this.users.set(id, user);
     return user;
@@ -83,7 +85,7 @@ export class MemStorage implements IStorage {
     }
     const updatedUser = {
       ...user,
-      usedStorage: Math.max(0, user.usedStorage + bytesAdded)
+      usedStorage: Math.max(0, (user.usedStorage ?? 0) + bytesAdded)
     };
     this.users.set(userId, updatedUser);
     return updatedUser;
@@ -98,9 +100,9 @@ export class MemStorage implements IStorage {
     return {
       user,
       storageInfo: {
-        used: user.usedStorage,
-        total: user.quota,
-        percentage: (user.usedStorage / user.quota) * 100
+        used: user.usedStorage ?? 0,
+        total: user.quota ?? 0,
+        percentage: ((user.usedStorage ?? 0) / (user.quota ?? 1)) * 100
       }
     };
   }
@@ -114,7 +116,8 @@ export class MemStorage implements IStorage {
       id,
       uploadTimestamp: now,
       isDeleted: false,
-      isStarred: false
+      isStarred: false,
+      fileLink: fileData.fileLink ?? null
     };
     this.files.set(id, file);
     return file;
@@ -127,7 +130,7 @@ export class MemStorage implements IStorage {
   async getUserFiles(userId: number): Promise<File[]> {
     return Array.from(this.files.values())
       .filter(file => file.uploaderId === userId && !file.isDeleted)
-      .sort((a, b) => b.uploadTimestamp.getTime() - a.uploadTimestamp.getTime());
+      .sort((a, b) => (b.uploadTimestamp ?? new Date()).getTime() - (a.uploadTimestamp ?? new Date()).getTime());
   }
 
   async getRecentUserFiles(userId: number, limit: number): Promise<File[]> {
@@ -137,7 +140,7 @@ export class MemStorage implements IStorage {
   async getFilesByType(userId: number, fileType: string): Promise<File[]> {
     return Array.from(this.files.values())
       .filter(file => file.uploaderId === userId && !file.isDeleted && file.fileType.includes(fileType))
-      .sort((a, b) => b.uploadTimestamp.getTime() - a.uploadTimestamp.getTime());
+      .sort((a, b) => (b.uploadTimestamp ?? new Date()).getTime() - (a.uploadTimestamp ?? new Date()).getTime());
   }
 
   async deleteFile(id: number): Promise<boolean> {
@@ -181,7 +184,7 @@ export class MemStorage implements IStorage {
       ...file,
       shareInfo: {
         shareLink: shareInfo.shareLink,
-        expiryDate: shareInfo.expiryDate
+        expiryDate: shareInfo.expiryDate ?? undefined
       }
     };
   }
@@ -194,7 +197,8 @@ export class MemStorage implements IStorage {
       ...sharedFileData,
       id,
       createdAt: now,
-      accessCount: 0
+      accessCount: 0,
+      expiryDate: sharedFileData.expiryDate ?? null
     };
     this.sharedFiles.set(id, sharedFile);
     return sharedFile;
@@ -221,7 +225,7 @@ export class MemStorage implements IStorage {
 
     const updatedSharedFile = {
       ...sharedFile,
-      accessCount: sharedFile.accessCount + 1
+      accessCount: (sharedFile.accessCount ?? 0) + 1
     };
     this.sharedFiles.set(id, updatedSharedFile);
     return updatedSharedFile;

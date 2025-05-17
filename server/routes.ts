@@ -16,6 +16,7 @@ import multer from "multer";
 import { z } from "zod";
 import { telegramService } from "./services/telegram.service";
 import { firebaseService } from "./services/firebase.service";
+import fs from 'fs';
 
 // Initialize Firebase Admin and Telegram services
 const initializeServices = async () => {
@@ -41,9 +42,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await initializeServices();
 
   // Setup multer for file uploads
-  const memStorage = multer.memoryStorage();
+  // Change from memory storage to disk storage
+  const diskStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      // Create a temp directory if it doesn't exist
+      const tmpDir = './temp_uploads';
+      if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+      }
+      cb(null, tmpDir);
+    },
+    filename: function (req, file, cb) {
+      // Generate a unique filename
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, uniqueSuffix + '-' + file.originalname);
+    }
+  });
+
   const upload = multer({
-    storage: memStorage,
+    storage: diskStorage,
     limits: {
       fileSize: 2 * 1024 * 1024 * 1024, // 2GB limit
     },
@@ -58,6 +75,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const token = authHeader.split(" ")[1];
+      console.log("authMiddleware token:", token);
+      console.log("authMiddleware token passed to verifyToken:", token);
       const decodedToken = await firebaseService.verifyToken(token);
       const user = await storage.getUserByUid(decodedToken.uid);
       
@@ -83,7 +102,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/files/recent", authMiddleware, filesController.getRecentFiles);
   app.get("/api/files/type/:type", authMiddleware, filesController.getFilesByType);
   app.get("/api/files/:id", authMiddleware, filesController.getFile);
-  app.post("/api/files/upload", authMiddleware, upload.single("file"), filesController.uploadFile);
+  app.post("/api/files/save-temp", authMiddleware, upload.single("file"), filesController.saveTempFile); // New route for temporary saving
+  app.post("/api/files/upload", authMiddleware, upload.single("file"), filesController.uploadFile); // Keep upload.single for direct uploads or if tempPath is not used
   app.get("/api/files/:id/download", authMiddleware, filesController.downloadFile);
   app.delete("/api/files/:id", authMiddleware, filesController.deleteFile);
   app.patch("/api/files/:id/star", authMiddleware, filesController.starFile);

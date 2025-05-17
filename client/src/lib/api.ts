@@ -52,19 +52,22 @@ export const getUserFiles = async (): Promise<FileSchema[]> => {
 
 export const getRecentFiles = async (limit: number = 4): Promise<FileSchema[]> => {
   const token = await getIdToken();
-  if (!token) throw new Error("No auth token available");
-  
+  if (!token) {
+    console.error("No auth token available");
+    throw new Error("No auth token available");
+  }
+
   const response = await fetch(`/api/files/recent?limit=${limit}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
     credentials: "include",
   });
-  
+
   if (!response.ok) {
     throw new Error("Failed to fetch recent files");
   }
-  
+
   return response.json();
 };
 
@@ -104,12 +107,39 @@ export const getFileDetails = async (fileId: number): Promise<FileWithShareInfo>
   return response.json();
 };
 
-export const uploadFile = async (file: globalThis.File, onProgress?: (progress: number) => void): Promise<FileWithShareInfo> => {
+// Save file temporarily
+export const saveTempFile = async (file: globalThis.File): Promise<{ tempPath: string }> => {
+  const token = await getIdToken();
+  if (!token) throw new Error("No auth token available");
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch("/api/files/save-temp", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to save file temporarily: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+};
+
+
+export const uploadFile = async (file: globalThis.File, onProgress?: (progress: number) => void, tempPath?: string): Promise<FileWithShareInfo> => {
   const token = await getIdToken();
   if (!token) throw new Error("No auth token available");
   
   const formData = new FormData();
   formData.append("file", file);
+  if (tempPath) {
+    formData.append("tempPath", tempPath); // Include tempPath if provided
+  }
   
   const xhr = new XMLHttpRequest();
   
