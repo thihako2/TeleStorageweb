@@ -22,8 +22,15 @@ import fs from 'fs';
 const initializeServices = async () => {
   try {
     await firebaseService.initialize();
-    await telegramService.initialize();
-    console.log("Services initialized successfully");
+    console.log("Firebase service initialized successfully");
+    
+    // Skip Telegram service initialization in WebContainer environment
+    if (process.env.NODE_ENV === 'development') {
+      console.warn("Skipping Telegram service initialization in development environment due to native addon limitations");
+    } else {
+      await telegramService.initialize();
+      console.log("Telegram service initialized successfully");
+    }
   } catch (error) {
     const isDevelopment = process.env.NODE_ENV === 'development';
     console.error("Failed to initialize services:", error);
