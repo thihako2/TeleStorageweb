@@ -26,13 +26,23 @@ class FirebaseService {
         throw new Error('Firebase credentials not found in environment variables. Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.');
       }
 
+      // Handle different private key formats
+      let formattedPrivateKey = privateKey;
+      
+      // If the private key doesn't include the BEGIN/END markers, assume it needs proper formatting
+      if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+        formattedPrivateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----`;
+      }
+      
+      // Replace literal '\n' strings with actual newlines
+      formattedPrivateKey = formattedPrivateKey.replace(/\\n/g, '\n');
+
       // Initialize Firebase Admin SDK with properly formatted private key
       this.app = admin.initializeApp({
         credential: admin.credential.cert({
           projectId,
           clientEmail,
-          // Ensure private key is properly formatted with actual newlines
-          privateKey: privateKey.replace(/\\n/g, '\n'),
+          privateKey: formattedPrivateKey,
         }),
       });
       
