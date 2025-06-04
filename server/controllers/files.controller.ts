@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import pino from 'pino';
+import { firebaseService } from 'server/services/firebase.service';
 
 const logger = pino({
   transport: {
@@ -196,7 +197,24 @@ export const filesController = {
 
       // save file metadata to the firestore database
       // 
-
+      firebaseService.setDatabaseData(`files/${result.fileId}`, {
+        fileName: originalname,
+        fileType: fileType,
+        fileSize: size,
+        fileLink: '', // Would be set for certain file types like images in a real implementation
+        uploaderId: req.user.id,
+        telegramMessageId: result.messageId,
+        channelId: result.channelId,
+        fileId: result.fileId,
+        mimeType: result.mimeType,
+        isUploadingCompleted: result.isUploadingCompleted,
+        isUploadingActive: result.isUploadingActive,
+        isDownloadingCompleted: result.isDownloadingCompleted,
+        isDownloadingActive: result.isDownloadingActive,
+        isDownloadingFailed: result.isDownloadingFailed,
+        isUploadingFailed: result.isUploadingFailed,
+        isUploadingCanceled: result.isUploadingCanceled,
+      });
 
       // Memorize file metadata
       const file = await storage.createFile(fileData);

@@ -237,85 +237,106 @@ export class TDLibClientImpl implements TDLibClient {
     }
 
     try {
-      // Get file information first to check if it's already downloaded
+      // First get file information
+      logger.info(`Getting file info for file ID: ${fileId}`);
       const fileInfo = await this.getFile(fileId);
 
-      // if (fileInfo.local.is_downloading_completed) {
-      //   logger.info(`File ${fileId} already downloaded to ${fileInfo.local.path}`);
-      //   return fileInfo.local.path;
-      // }
+      if (!fileInfo || fileInfo._ !== 'file') {
+        throw new TDLibError(`Invalid file info returned for file ID ${fileId}`, 500);
+      }
+
+      // Get file size and name info
+      const expectedSize = fileInfo.size || 0;
+      const remoteId = fileInfo.remote?.id;
+      logger.info(`File size: ${expectedSize}, Remote ID: ${remoteId}`);
+
+      // If file is already downloaded and exists, return its path
+      if (fileInfo.local?.is_downloading_completed && 
+          fileInfo.local.path && 
+          fs.existsSync(fileInfo.local.path) &&
+          fs.statSync(fileInfo.local.path).size === expectedSize) {
+        logger.info(`File ${fileId} already downloaded to ${fileInfo.local.path}`);
+        return fileInfo.local.path;
+      }
 
       logger.info(`Downloading file with ID: ${fileId}, priority: ${priority}`);
-      // Use client.invoke with the downloadFile method
-      // const downloadedFile = await this.client.invoke({
-      //   _: 'downloadFile',
-      //   file_id: fileId, // Set to true if you want to wait for download to complete
-      //   priority: priority,
-      //   synchronous: false, // async download
-      // });
-      const downloadedFile = await this.client.invoke({
+      
+      // Prepare download directory
+      const downloadDir = path.join(os.tmpdir(), 'tdlib_downloads');
+      if (!fs.existsSync(downloadDir)) {
+        fs.mkdirSync(downloadDir, { recursive: true });
+      }
+
+      // Start file download with specific destination path
+      const downloadResult = await this.client.invoke({
         _: 'downloadFile',
         file_id: fileId,
-        priority: 32,
+        priority: priority,
         offset: 0,
         limit: 0,
-        synchronous: false // Use asynchronous download instead
-      }).catch((error: any) => {
-        // console.error('Error initiating download:', error);
-        logger.error(`Error initiating download for file ID ${fileId}:`, error);
-        logger.error(`error is : ${error}`);
+        synchronous: false
       });
 
-      this.client.on('update', update => {
-        if (update._ === 'updateFile') {
-          const file = update.file;
-          if (file.local && file.local.path && file.local.is_downloading_completed) {
-            logger.info('Downloaded:', file.local.path);
+      if (!downloadResult || downloadResult._ !== 'file') {
+        throw new TDLibError(`Failed to initiate download for file ID ${fileId}`, 500);
+      }
+
+      // Wait for download to complete
+      const downloadedPath = await new Promise<string>((resolve, reject) => {
+        let timeout: NodeJS.Timeout | null = null;
+        let timeoutDuration = 300000; // 5 minutes timeout
+
+        const cleanup = () => {
+          if (timeout) clearTimeout(timeout);
+          this.client?.off('update', onUpdate);
+        };
+
+        // Set timeout
+        timeout = setTimeout(() => {
+          cleanup();
+          reject(new TDLibError(`Download timeout for file ID ${fileId}`, 408));
+        }, timeoutDuration);
+
+        const onUpdate = (update: any) => {
+          if (update._ === 'updateFile' && update.file.id === fileId) {
+            const file = update.file;
+            logger.info(`File update received:`, file);
+            
+            if (file.local && file.local.is_downloading_completed) {
+              // Verify file exists and has correct size
+              const finalPath = file.local.path;
+              if (fs.existsSync(finalPath) && fs.statSync(finalPath).size === expectedSize) {
+                cleanup();
+                logger.info(`File ${fileId} downloaded successfully to ${finalPath}`);
+                resolve(finalPath);
+              } else {
+                cleanup();
+                reject(new TDLibError(`Downloaded file verification failed for file ID ${fileId}`, 500));
+              }
+            } 
+            else if (file.local && !file.local.is_downloading_active && !file.local.is_downloading_completed) {
+              cleanup();
+              reject(new TDLibError(`Download failed for file ID ${fileId}`, 500));
+            }
           }
-        }
+        };
+
+        this.client?.on('update', onUpdate);
       });
-      
 
-      logger.info(`Download request sent for file ID: ${fileId}`);
-      logger.info(`Download response: ${JSON.stringify(downloadedFile)}`);
+      // Final verification
+      if (!fs.existsSync(downloadedPath)) {
+        throw new TDLibError(`Downloaded file not found at path: ${downloadedPath}`, 404);
+      }
 
-      // The downloadFile method in TDLib doesn't return the file path directly.
-      // It returns an updated file object. We need to wait for the update
-      // indicating the download is complete and the local path is available.
-      // This requires listening for 'updateFile' events.
-
-      // For simplicity in this implementation, we'll just return the file info
-      // and assume the download will happen in the background.
-      // A more robust implementation would involve waiting for the 'updateFile'
-      // with is_downloading_completed: true and then getting the file info again.
-
-      // Let's get the file info again to return the current state,
-      // which might include the local path if the download was very fast.
-      // const fileInfoAfterDownloadRequest = await this.getFile(fileId);
-
-      // if (fileInfoAfterDownloadRequest.local.path && fileInfoAfterDownloadRequest.local.is_downloading_completed) {
-      //    logger.info(`File ${fileId} downloaded successfully to ${fileInfoAfterDownloadRequest.local.path}`);
-      //    return fileInfoAfterDownloadRequest.local.path;
-      // } else if (fileInfoAfterDownloadRequest.local.path && fileInfoAfterDownloadRequest.local.is_downloading_active) {
-      //    logger.info(`Download started for file ${fileId}. Local path: ${fileInfoAfterDownloadRequest.local.path}`);
-      //    // In a real application, you would track the download progress
-      //    // and wait for completion. For now, we return the path where it will be saved.
-      //    return fileInfoAfterDownloadRequest.local.path;
-      // }
-      // else {
-      //   // If no local path is immediately available, we can't return a path yet.
-      //   // A real implementation would need to handle this asynchronously.
-      //   throw new TDLibError(`Download initiated for file ${fileId}, but local path not immediately available.`, 200); // Use a non-error code to indicate download is in progress
-      // }
-
-      return downloadedFile.local.path; // Return the local path where the file will be saved
-
+      return downloadedPath;
 
     } catch (error: any) {
       logger.error(`TDLib downloadFile error for file ID ${fileId}:`, error);
-      throw new TDLibError(`TDLib downloadFile failed for file ID ${fileId}: ${error.message}`, error.code);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorCode = error.code || 500;
+      throw new TDLibError(`TDLib downloadFile failed for file ID ${fileId}: ${errorMessage}`, errorCode);
     }
-    // return downloadedFile.local.path;
   }
 
   async checkChatIdExistance(checkerchatId: number): Promise<boolean> {

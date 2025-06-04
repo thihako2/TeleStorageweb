@@ -116,6 +116,27 @@ class FirebaseService {
       throw error;
     }
   }
+
+  async setDatabaseData(path: string, data: any): Promise<void> {
+    // Ensure Firebase is initialized
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    try {
+      if (this.app) {
+        // Use Firebase Admin SDK to set data in the database
+        const db = admin.database();
+        await db.ref(path).set(data);
+        console.log(`Data set at ${path}`);
+      } else {
+        throw new Error('Firebase Admin SDK not initialized.');
+      }
+    } catch (error) {
+      console.error(`Failed to set data at ${path}:`, error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

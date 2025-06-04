@@ -185,14 +185,16 @@ class TelegramService {
     try {
       // Get the message
       logger.info(`Downloading file with message ID: ${messageId} from channel ID: ${channelId}`);
+      let messages;
       let message;
       try {
-        message = await this.client.send({
-          _: 'getMessage',
+        messages = await this.client.send({
+          _: 'getMessages',
           chat_id: channelId,
-          message_id: messageId
+          message_ids: [messageId]
         });
-        logger.info(`Message: ${JSON.stringify(message)}`);
+        message = messages.messages[0];
+        logger.info(`Message: ${JSON.stringify(messages)}`);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         logger.error(`Error fetching message: ${errorMessage}`);
@@ -204,22 +206,22 @@ class TelegramService {
         throw error; // Re-throw other errors
       }
 
-      // const message = await this.client.send('getMessage', {
-      //   file_id: fileId,
-      //   limit: 0,            // 0 = full file
-      //   synchronous: true    // wait until download completes
-      // });
-      
+      logger.info(`Fetched message: ${JSON.stringify(message)}`);
       // Check if the message contains a file
       if (!message || !message.content || !message.content.document) {
         throw new Error('Message does not contain a file');
       }
+
+      logger.info(`Message content: ${JSON.stringify(message.content)}`);
       
       // Check if the file is a chunk (part of a larger file)
       const caption = message.content.caption?.text || '';
       const partMatch = caption.match(/\.part(\d+)\/(\d+)$/);
+      logger.info(`Caption: ${caption}`);
+
       
       if (partMatch) {
+        logger.info('File is split into multiple parts');
         // This is a chunk of a larger file
         const partNumber = parseInt(partMatch[1]);
         const totalParts = parseInt(partMatch[2]);
@@ -266,20 +268,61 @@ class TelegramService {
         return outputPath;
       } else {
         // This is a single file
+        logger.info('Downloading single file...');
         const fileId = message.content.document.document.id;
+        let downloadedPath;
         logger.info(`Downloading file with ID: ${fileId}`);
-        const filePath = await this.client.downloadFile(fileId);
-        
-        // Copy to our temp directory with the original filename
-        const outputPath = path.join(this.tempDir, message.content.caption?.text || 'downloaded_file');
-        fs.copyFileSync(filePath, outputPath);
-        
-        return outputPath;
+        try {
+          // Get the original filename from the message or use a default
+          const originalFilename = message.content.document.file_name || 
+                                 message.content.caption?.text || 
+                                 'downloaded_file';
+          
+          // Ensure temp directory exists
+          if (!fs.existsSync(this.tempDir)) {
+            fs.mkdirSync(this.tempDir, { recursive: true });
+          }
+          
+          // Download the file
+          downloadedPath = await this.client.downloadFile(fileId).then((path: string) => {
+            logger.info(`File downloaded to: ${path}`);
+            return path;
+          }).catch((error: Error) => {
+            logger.error('Error downloading file: from tg service', error);
+            // throw new Error(`Failed to download file from Telegram: ${error.message}`);
+          });
+          logger.info(`File downloaded successfully to: ${downloadedPath}`);
+
+          if (!downloadedPath || !fs.existsSync(downloadedPath)) {
+            throw new Error(`Downloaded file not found at path: ${downloadedPath}`);
+          }
+
+          // Get file stats to verify size
+          const stats = fs.statSync(downloadedPath);
+          const expectedSize = message.content.document.document.size;
+          
+          if (stats.size !== expectedSize) {
+            throw new Error(`File size mismatch. Expected: ${expectedSize}, Got: ${stats.size}`);
+          }
+          
+          // Copy to our temp directory with the original filename
+          const outputPath = path.join(this.tempDir, originalFilename);
+          logger.info(`Copying file from ${downloadedPath} to ${outputPath}`);
+          await fs.promises.copyFile(downloadedPath, outputPath);
+          
+          return outputPath;
+        } catch (error) {
+          logger.error('Error downloading file:', error);
+          logger.error('Download path:', downloadedPath);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          throw new Error(`Failed to download file from Telegram: ${errorMessage}`);
+        }
       }
     } catch (error) {
       logger.error('Failed to download file:', error);
 
       const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Error details: ${JSON.stringify(error)}`);
       throw Error(`Failed to download file from Telegram: ${errorMessage}`);
     }
   }

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="#3F51B5"/>
+
+  <!-- Comic book pages -->
+  <rect x="96" y="96" width="280" height="320" rx="20" fill="#FFFFFF"/>
+  <rect x="136" y="96" width="280" height="320" rx="20" fill="#EEEEEE"/>
+
+  <!-- Comic panels -->
+  <rect x="156" y="136" width="120" height="100" rx="10" fill="#FFC107"/>
+  <rect x="156" y="256" width="120" height="100" rx="10" fill="#4CAF50"/>
+  <rect x="296" y="136" width="100" height="220" rx="10" fill="#F44336"/>
+
+  <!-- Speech bubbles -->
+  <circle cx="196" cy="166" r="20" fill="#FFFFFF"/>
+  <circle cx="226" cy="196" r="15" fill="#FFFFFF"/>
+  <path d="M196 166 L 226 196" stroke="#FFFFFF" stroke-width="10"/>
+  
+  <circle cx="196" cy="286" r="20" fill="#FFFFFF"/>
+  <circle cx="226" cy="316" r="15" fill="#FFFFFF"/>
+  <path d="M196 286 L 226 316" stroke="#FFFFFF" stroke-width="10"/>
+
+  <circle cx="346" cy="196" r="25" fill="#FFFFFF"/>
+  <circle cx="316" cy="236" r="15" fill="#FFFFFF"/>
+  <path d="M346 196 L 316 236" stroke="#FFFFFF" stroke-width="10"/>
+</svg>
