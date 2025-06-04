@@ -20,22 +20,19 @@ class FirebaseService {
       // Check if required environment variables are set
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-      let privateKey = process.env.FIREBASE_PRIVATE_KEY;
-      
-      if (privateKey) {
-        privateKey = privateKey.replace(/\\n/g, '\n');
-      }
+      const privateKey = process.env.FIREBASE_PRIVATE_KEY;
       
       if (!projectId || !clientEmail || !privateKey) {
         throw new Error('Firebase credentials not found in environment variables. Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.');
       }
-      
-      // Initialize Firebase Admin SDK
+
+      // Initialize Firebase Admin SDK with properly formatted private key
       this.app = admin.initializeApp({
         credential: admin.credential.cert({
           projectId,
           clientEmail,
-          privateKey,
+          // Ensure private key is properly formatted with actual newlines
+          privateKey: privateKey.replace(/\\n/g, '\n'),
         }),
       });
       
@@ -59,12 +56,12 @@ class FirebaseService {
     }
     
     try {
-      if (this.app) {
-        // Use Firebase Admin SDK to verify token
-        return await admin.auth().verifyIdToken(idToken);
-      } else {
+      if (!this.app) {
         throw new Error('Firebase Admin SDK not initialized.');
       }
+
+      // Use Firebase Admin SDK to verify token
+      return await admin.auth().verifyIdToken(idToken);
     } catch (error) {
       console.error('Token verification failed:', error);
       throw error;
@@ -83,34 +80,12 @@ class FirebaseService {
     }
     
     try {
-      if (this.app) {
-        // Use Firebase Admin SDK to get user
-        return await admin.auth().getUser(uid);
-      } else {
-        // Mock implementation for development/testing
-        console.warn('Using mock user record');
-        
-        return {
-          uid,
-          email: 'user@example.com',
-          emailVerified: true,
-          displayName: 'Test User',
-          photoURL: undefined,
-          phoneNumber: undefined,
-          disabled: false,
-          metadata: {
-            creationTime: new Date().toISOString(),
-            lastSignInTime: new Date().toISOString(),
-            lastRefreshTime: undefined,
-            toJSON: () => ({
-              creationTime: new Date().toISOString(),
-              lastSignInTime: new Date().toISOString(),
-            }),
-          },
-          providerData: [],
-          toJSON: () => ({ uid }),
-        } as admin.auth.UserRecord;
+      if (!this.app) {
+        throw new Error('Firebase Admin SDK not initialized.');
       }
+
+      // Use Firebase Admin SDK to get user
+      return await admin.auth().getUser(uid);
     } catch (error) {
       console.error('Failed to get user:', error);
       throw error;
@@ -124,14 +99,14 @@ class FirebaseService {
     }
 
     try {
-      if (this.app) {
-        // Use Firebase Admin SDK to set data in the database
-        const db = admin.database();
-        await db.ref(path).set(data);
-        console.log(`Data set at ${path}`);
-      } else {
+      if (!this.app) {
         throw new Error('Firebase Admin SDK not initialized.');
       }
+
+      // Use Firebase Admin SDK to set data in the database
+      const db = admin.database();
+      await db.ref(path).set(data);
+      console.log(`Data set at ${path}`);
     } catch (error) {
       console.error(`Failed to set data at ${path}:`, error);
       throw error;
